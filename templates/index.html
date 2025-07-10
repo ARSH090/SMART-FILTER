@@ -73,10 +73,10 @@
 <body>
   <div class="card">
     <h2>🔍 Smart Excel Filter</h2>
-    <form id="upload-form">
+    <form id="upload-form" method="POST" enctype="multipart/form-data">
       <div class="mb-3 text-start">
         <label class="form-label">🔑 Search Term</label>
-        <input type="text" name="search_term" class="form-control" placeholder="e.g. nxteqbal" required />
+        <input type="text" name="keyword" class="form-control" placeholder="e.g. nxteqbal" required />
       </div>
 
       <div class="mb-3">
@@ -130,23 +130,22 @@
         body: formData,
       });
 
-      const result = await response.text();
+      const result = await response.json();
 
       spinner.style.display = 'none';
 
-      if (result.includes('Filtered file ready')) {
-        const link = result.match(/href='(.*?)'/)[1];
+      if (result.success) {
         Swal.fire({
           icon: 'success',
           title: '✅ File Ready!',
-          html: `<a href="${link}" class="btn btn-success mt-3">Download Filtered File</a>`,
+          html: `<a href="${result.download_link}" class="btn btn-success mt-3">Download Filtered File</a>`,
           showConfirmButton: false,
         });
       } else {
         Swal.fire({
           icon: 'info',
           title: 'Oops!',
-          text: result,
+          text: result.message,
         });
       }
     });

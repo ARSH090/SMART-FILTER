@@ -1,57 +1,48 @@
-from flask import Flask, render_template, request, send_file
-import pandas as pd
+from flask import Flask, render_template, request, send_file, jsonify
 import os
+import pandas as pd
+from werkzeug.utils import secure_filename
 from datetime import datetime
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = 'uploads'
-RESULT_FOLDER = 'results'
-
-# Make folders if not exist
+RESULTS_FOLDER = 'results'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(RESULT_FOLDER, exist_ok=True)
+os.makedirs(RESULTS_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
-        search_term = request.form['search_term'].strip()
+        if 'file' not in request.files:
+            return jsonify(success=False, message="No file part")
+
         file = request.files['file']
+        keyword = request.form.get('keyword')
 
-        if not file:
-            return "No file uploaded"
+        if file.filename == '':
+            return jsonify(success=False, message="No selected file")
 
-        # Save uploaded file
-        filename = file.filename
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(file_path)
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
 
-        # Read file (auto detect extension)
-        if filename.endswith('.csv'):
-            df = pd.read_csv(file_path)
-        else:
-            df = pd.read_excel(file_path)
-
-        # Filter: any cell contains search_term
-        mask = df.apply(lambda row: row.astype(str).str.contains(search_term, case=False, na=False).any(), axis=1)
+        df = pd.read_excel(filepath)
+        mask = df.apply(lambda row: row.astype(str).str.contains(keyword, case=False).any(), axis=1)
         filtered_df = df[mask]
 
-        if filtered_df.empty:
-            return "No matching rows found."
-
-        # Save filtered file
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        output_filename = f"filtered_{timestamp}.xlsx"
-        output_path = os.path.join(RESULT_FOLDER, output_filename)
+        output_filename = f"filtered_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+        output_path = os.path.join(RESULTS_FOLDER, output_filename)
         filtered_df.to_excel(output_path, index=False)
 
-        return f"Filtered file ready: <a href='/download/{output_filename}'>Download Here</a>"
+        return jsonify(success=True, download_link=f'/download/{output_filename}')
 
     return render_template('index.html')
 
 @app.route('/download/<filename>')
-def download(filename):
-    return send_file(os.path.join(RESULT_FOLDER, filename), as_attachment=True)
+def download_file(filename):
+    return send_file(os.path.join(RESULTS_FOLDER, filename), as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000)
