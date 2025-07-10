@@ -16,10 +16,13 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def index():
     if request.method == 'POST':
         if 'file' not in request.files:
-            return jsonify(success=False, message="No file part")
+            return jsonify(success=False, message="No file uploaded")
 
         file = request.files['file']
         keyword = request.form.get('keyword')
+
+        if not keyword:
+            return jsonify(success=False, message="No keyword given")
 
         if file.filename == '':
             return jsonify(success=False, message="No selected file")
@@ -45,4 +48,4 @@ def download_file(filename):
     return send_file(os.path.join(RESULTS_FOLDER, filename), as_attachment=True)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(host='0.0.0.0', port=5000)

@@ -39,6 +39,7 @@
       cursor: pointer;
       transition: 0.3s;
       background: #f9f9f9;
+      position: relative;
     }
 
     .drop-zone:hover {
@@ -48,6 +49,13 @@
     .drop-zone p {
       margin: 0;
       color: #666;
+    }
+
+    .drop-zone span {
+      display: block;
+      margin-top: 10px;
+      font-weight: 600;
+      color: #333;
     }
 
     input[type="file"] {
@@ -82,6 +90,7 @@
       <div class="mb-3">
         <label for="file-upload" class="drop-zone" id="drop-zone">
           <p>📂 Drag & Drop File Here or Click to Select</p>
+          <span id="file-name"></span>
           <input type="file" name="file" id="file-upload" accept=".xlsx,.xls,.csv" required />
         </label>
       </div>
@@ -101,8 +110,17 @@
     const fileInput = document.getElementById('file-upload');
     const uploadForm = document.getElementById('upload-form');
     const spinner = document.getElementById('spinner');
+    const fileName = document.getElementById('file-name');
 
     dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files.length > 0) {
+        fileName.textContent = `Selected: ${fileInput.files[0].name}`;
+      } else {
+        fileName.textContent = '';
+      }
+    });
 
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -117,36 +135,61 @@
       e.preventDefault();
       fileInput.files = e.dataTransfer.files;
       dropZone.style.background = '#f9f9f9';
+      if (fileInput.files.length > 0) {
+        fileName.textContent = `Selected: ${fileInput.files[0].name}`;
+      } else {
+        fileName.textContent = '';
+      }
     });
 
     uploadForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      if (fileInput.files.length === 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'No File',
+          text: 'Please select a file to upload.',
+        });
+        return;
+      }
+
       spinner.style.display = 'block';
 
       const formData = new FormData(uploadForm);
 
-      const response = await fetch('/', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      spinner.style.display = 'none';
-
-      if (result.success) {
-        Swal.fire({
-          icon: 'success',
-          title: '✅ File Ready!',
-          html: `<a href="${result.download_link}" class="btn btn-success mt-3">Download Filtered File</a>`,
-          showConfirmButton: false,
+      try {
+        const response = await fetch('/', {
+          method: 'POST',
+          body: formData,
         });
-      } else {
+
+        const result = await response.json();
+
+        spinner.style.display = 'none';
+
+        if (result.success) {
+          Swal.fire({
+            icon: 'success',
+            title: '✅ File Ready!',
+            html: `<a href="${result.download_link}" class="btn btn-success mt-3">Download Filtered File</a>`,
+            showConfirmButton: false,
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: result.message || 'Something went wrong.',
+          });
+        }
+      } catch (err) {
+        spinner.style.display = 'none';
         Swal.fire({
-          icon: 'info',
-          title: 'Oops!',
-          text: result.message,
+          icon: 'error',
+          title: 'Upload Failed',
+          text: 'Could not connect to server.',
         });
+        console.error(err);
       }
     });
   </script>
